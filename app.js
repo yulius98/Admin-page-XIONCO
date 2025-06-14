@@ -93,6 +93,109 @@ app.post('/product/add', (req, res) => {
   });
 });
 
+// New route: list products with edit and delete buttons
+app.get('/products', (req, res) => {
+  const query = `
+    SELECT Produk.id, Produk.name, Produk.price, Stock.quantity
+    FROM Produk
+    LEFT JOIN Stock ON Produk.id = Stock.produk_id
+  `;
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      return res.status(500).send('Database error');
+    }
+    res.render('products', { products: rows });
+  });
+});
+
+// Reuse add product form route with new path
+app.get('/products/add', (req, res) => {
+  res.render('add_product');
+});
+
+// Reuse add product POST handler with new path
+app.post('/products/add', (req, res) => {
+  const { name, price, stock } = req.body;
+  const priceNum = parseFloat(price);
+  const stockNum = parseInt(stock);
+  if (!name || isNaN(priceNum) || priceNum <= 0 || isNaN(stockNum) || stockNum < 0) {
+    return res.status(400).send('Invalid input');
+  }
+
+  db.run('INSERT INTO Produk (name, price) VALUES (?, ?)', [name, priceNum], function(err) {
+    if (err) {
+      return res.status(500).send('Database error');
+    }
+    const produkId = this.lastID;
+    db.run('INSERT INTO Stock (produk_id, quantity) VALUES (?, ?)', [produkId, stockNum], (err) => {
+      if (err) {
+        return res.status(500).send('Database error');
+      }
+      res.redirect('/products');
+    });
+  });
+});
+
+// GET edit product form
+app.get('/products/edit/:id', (req, res) => {
+  const productId = req.params.id;
+  const query = `
+    SELECT Produk.id, Produk.name, Produk.price, Stock.quantity
+    FROM Produk
+    LEFT JOIN Stock ON Produk.id = Stock.produk_id
+    WHERE Produk.id = ?
+  `;
+  db.get(query, [productId], (err, row) => {
+    if (err) {
+      return res.status(500).send('Database error');
+    }
+    if (!row) {
+      return res.status(404).send('Product not found');
+    }
+    res.render('edit_product', { product: row });
+  });
+});
+
+// POST edit product form handler
+app.post('/products/edit/:id', (req, res) => {
+  const productId = req.params.id;
+  const { name, price, stock } = req.body;
+  const priceNum = parseFloat(price);
+  const stockNum = parseInt(stock);
+  if (!name || isNaN(priceNum) || priceNum <= 0 || isNaN(stockNum) || stockNum < 0) {
+    return res.status(400).send('Invalid input');
+  }
+
+  db.run('UPDATE Produk SET name = ?, price = ? WHERE id = ?', [name, priceNum, productId], function(err) {
+    if (err) {
+      return res.status(500).send('Database error');
+    }
+    db.run('UPDATE Stock SET quantity = ? WHERE produk_id = ?', [stockNum, productId], function(err) {
+      if (err) {
+        return res.status(500).send('Database error');
+      }
+      res.redirect('/products');
+    });
+  });
+});
+
+// POST delete product handler
+app.post('/products/delete/:id', (req, res) => {
+  const productId = req.params.id;
+  // Delete stock first due to foreign key constraint
+  db.run('DELETE FROM Stock WHERE produk_id = ?', [productId], function(err) {
+    if (err) {
+      return res.status(500).send('Database error');
+    }
+    db.run('DELETE FROM Produk WHERE id = ?', [productId], function(err) {
+      if (err) {
+        return res.status(500).send('Database error');
+      }
+      res.redirect('/products');
+    });
+  });
+});
+
 //  tampilkan form untuk pembelian produk
 app.get('/purchase', (req, res) => {
   db.all('SELECT * FROM Produk', [], (err, products) => {
@@ -213,7 +316,7 @@ function seedProducts() {
           if (err) {
             console.error('Error inserting product', err.message);
           } else {
-            insertStock.run(this.lastID, 100, (err) => {
+            insertStock.run(this.lastID, 100, function(err) {
               if (err) {
                 console.error('Error inserting stock', err.message);
               }
