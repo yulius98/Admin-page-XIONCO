@@ -93,7 +93,7 @@ app.post('/product/add', (req, res) => {
   });
 });
 
-// New route: list products with edit and delete buttons
+// halaman daftar produk dengan stok
 app.get('/products', (req, res) => {
   const query = `
     SELECT Produk.id, Produk.name, Produk.price, Stock.quantity
@@ -108,12 +108,12 @@ app.get('/products', (req, res) => {
   });
 });
 
-// Reuse add product form route with new path
+//  tampilkan form untuk menambah produk baru
 app.get('/products/add', (req, res) => {
   res.render('add_product');
 });
 
-// Reuse add product POST handler with new path
+//  tangani penambahan produk baru 
 app.post('/products/add', (req, res) => {
   const { name, price, stock } = req.body;
   const priceNum = parseFloat(price);
@@ -136,7 +136,7 @@ app.post('/products/add', (req, res) => {
   });
 });
 
-// GET edit product form
+// GET edit product
 app.get('/products/edit/:id', (req, res) => {
   const productId = req.params.id;
   const query = `
@@ -156,7 +156,7 @@ app.get('/products/edit/:id', (req, res) => {
   });
 });
 
-// POST edit product form handler
+// tangani update produk 
 app.post('/products/edit/:id', (req, res) => {
   const productId = req.params.id;
   const { name, price, stock } = req.body;
@@ -179,7 +179,7 @@ app.post('/products/edit/:id', (req, res) => {
   });
 });
 
-// POST delete product handler
+// tangani penghapusan produk
 app.post('/products/delete/:id', (req, res) => {
   const productId = req.params.id;
   // Delete stock first due to foreign key constraint
